@@ -310,7 +310,7 @@ function SampleCard({
           ? "cursor-not-allowed border-zinc-200"
           : dragging
             ? "z-30 cursor-grabbing border-zinc-200 shadow-2xl"
-            : "z-20 cursor-grab border-amber-400 ring-4 ring-amber-200"
+            : "icon-glow z-20 cursor-grab border-amber-400"
       }`}
     >
       <span aria-hidden>{emoji}</span>
@@ -680,7 +680,7 @@ export default function AlphabetLesson() {
             <div
               role="group"
               aria-label="Letters A to E"
-              className="flex items-start gap-1 sm:gap-3 lg:gap-5"
+              className="flex w-[calc(100vw-2rem)] max-w-sm items-start gap-2 sm:w-auto sm:max-w-none sm:gap-3 lg:gap-5"
             >
               {LETTERS.map((letter, i) => {
                 const revealed = i < revealedCount;
@@ -705,15 +705,15 @@ export default function AlphabetLesson() {
                 return (
                   <div
                     key={letter}
-                    className="flex flex-col items-center gap-2"
+                    className="flex flex-1 flex-col items-center gap-2 sm:flex-none"
                   >
                     <span
                       ref={(el) => {
                         tileRefs.current[i] = el;
                       }}
                       className={[
-                        "font-display flex h-14 w-14 items-center justify-center rounded-xl text-3xl font-bold",
-                        "transition-all duration-500 ease-out sm:h-20 sm:w-20 sm:rounded-2xl sm:text-4xl lg:h-28 lg:w-28 lg:rounded-3xl lg:text-6xl",
+                        "font-display flex aspect-square w-full items-center justify-center rounded-2xl text-3xl font-bold",
+                        "transition-all duration-500 ease-out sm:aspect-auto sm:h-20 sm:w-20 sm:text-4xl lg:h-28 lg:w-28 lg:rounded-3xl lg:text-6xl",
                         color,
                         translateY,
                         revealed ? "opacity-100" : "opacity-0",
