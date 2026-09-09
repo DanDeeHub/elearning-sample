@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import {
   useCallback,
   useEffect,
@@ -30,16 +29,113 @@ const SAMPLES = [
 
 // Faint letters drifting behind the start screen
 const FLOATING_LETTERS = [
-  { ch: "A", top: "10%", left: "7%", size: "clamp(3rem, 11vw, 8rem)", dur: "13s", delay: "0s", color: "text-rose-400/15" },
-  { ch: "E", top: "60%", left: "26%", size: "clamp(3.5rem, 14vw, 9rem)", dur: "21s", delay: "-4s", color: "text-violet-400/20" },
-  { ch: "C", top: "20%", left: "76%", size: "clamp(3.5rem, 13vw, 9rem)", dur: "16s", delay: "-7s", color: "text-emerald-400/15" },
-  { ch: "B", top: "70%", left: "12%", size: "clamp(2.5rem, 9vw, 6rem)", dur: "18s", delay: "-3s", color: "text-amber-400/20" },
-  { ch: "D", top: "72%", left: "80%", size: "clamp(2.5rem, 10vw, 6.5rem)", dur: "19s", delay: "-10s", color: "text-sky-400/15" },
-  { ch: "D", top: "6%", left: "44%", size: "clamp(1.75rem, 5vw, 3rem)", dur: "15s", delay: "-6s", color: "text-sky-400/15" },
-  { ch: "A", top: "86%", left: "48%", size: "clamp(1.75rem, 5vw, 3rem)", dur: "14s", delay: "-2s", color: "text-rose-400/15" },
-  { ch: "C", top: "40%", left: "5%", size: "clamp(1.75rem, 5vw, 3rem)", dur: "22s", delay: "-13s", color: "text-emerald-400/15" },
-  { ch: "B", top: "54%", left: "88%", size: "clamp(1.75rem, 5vw, 3rem)", dur: "20s", delay: "-9s", color: "text-amber-400/20" },
+  {
+    ch: "A",
+    top: "10%",
+    left: "7%",
+    size: "clamp(3rem, 11vw, 8rem)",
+    dur: "7s",
+    delay: "0s",
+    color: "text-rose-400/20",
+  },
+  {
+    ch: "E",
+    top: "58%",
+    left: "24%",
+    size: "clamp(3.5rem, 14vw, 9rem)",
+    dur: "9s",
+    delay: "-2s",
+    color: "text-violet-400/25",
+  },
+  {
+    ch: "C",
+    top: "18%",
+    left: "74%",
+    size: "clamp(3.5rem, 13vw, 9rem)",
+    dur: "8s",
+    delay: "-4s",
+    color: "text-emerald-400/20",
+  },
+  {
+    ch: "B",
+    top: "68%",
+    left: "12%",
+    size: "clamp(2.5rem, 9vw, 6rem)",
+    dur: "10s",
+    delay: "-1s",
+    color: "text-amber-400/25",
+  },
+  {
+    ch: "D",
+    top: "70%",
+    left: "78%",
+    size: "clamp(2.5rem, 10vw, 6.5rem)",
+    dur: "8.5s",
+    delay: "-5s",
+    color: "text-sky-400/20",
+  },
+  {
+    ch: "D",
+    top: "6%",
+    left: "44%",
+    size: "clamp(1.75rem, 5vw, 3rem)",
+    dur: "6.5s",
+    delay: "-3s",
+    color: "text-sky-400/20",
+  },
+  {
+    ch: "A",
+    top: "84%",
+    left: "46%",
+    size: "clamp(1.75rem, 5vw, 3rem)",
+    dur: "7.5s",
+    delay: "-1.5s",
+    color: "text-rose-400/20",
+  },
+  {
+    ch: "C",
+    top: "38%",
+    left: "5%",
+    size: "clamp(1.75rem, 5vw, 3rem)",
+    dur: "11s",
+    delay: "-6s",
+    color: "text-emerald-400/20",
+  },
+  {
+    ch: "B",
+    top: "52%",
+    left: "88%",
+    size: "clamp(1.75rem, 5vw, 3rem)",
+    dur: "9.5s",
+    delay: "-4s",
+    color: "text-amber-400/25",
+  },
 ];
+
+function FloatingLetters() {
+  return (
+    <div
+      aria-hidden
+      className="pointer-events-none absolute inset-0 overflow-hidden"
+    >
+      {FLOATING_LETTERS.map((f, i) => (
+        <span
+          key={i}
+          className={`float-letter absolute font-display font-bold select-none ${f.color}`}
+          style={{
+            top: f.top,
+            left: f.left,
+            fontSize: f.size,
+            animationDuration: f.dur,
+            animationDelay: f.delay,
+          }}
+        >
+          {f.ch}
+        </span>
+      ))}
+    </div>
+  );
+}
 
 // Timeline
 const FADE_OUT_MS = 500; // start screen fades away (matches its CSS duration)
@@ -105,13 +201,38 @@ function stopTTS() {
   } catch {}
 }
 
+// Play a list of clips back-to-back through the shared element.
+function playClips(sources: string[]) {
+  const audio = getAudio();
+  if (!audio) return;
+  let i = 0;
+  const next = () => {
+    if (i >= sources.length) {
+      audio.onended = null;
+      return;
+    }
+    audio.onended = next;
+    audio.volume = 1;
+    audio.src = sources[i++];
+    try {
+      audio.currentTime = 0;
+    } catch {}
+    audio.play().catch(next);
+  };
+  next();
+}
+
+function stopClips() {
+  if (sharedAudio) {
+    sharedAudio.onended = null;
+    try {
+      sharedAudio.pause();
+    } catch {}
+  }
+}
+
 type Phase =
-  | "idle"
-  | "revealing"
-  | "pausing"
-  | "speaking"
-  | "done"
-  | "samples";
+  "idle" | "revealing" | "pausing" | "speaking" | "done" | "samples" | "score";
 
 // A picture card that can be dragged with a mouse or a finger onto its letter.
 function SampleCard({
@@ -120,6 +241,7 @@ function SampleCard({
   label,
   letter,
   matched,
+  locked,
   onDrop,
 }: {
   index: number;
@@ -127,6 +249,7 @@ function SampleCard({
   label: string;
   letter: string;
   matched: boolean;
+  locked: boolean;
   onDrop: (letter: string, x: number, y: number) => void;
 }) {
   const [drag, setDrag] = useState({ x: 0, y: 0 });
@@ -141,7 +264,7 @@ function SampleCard({
   }, [index]);
 
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
-    if (matched) return;
+    if (matched || locked) return;
     e.currentTarget.setPointerCapture(e.pointerId);
     startRef.current = { px: e.clientX, py: e.clientY, x: drag.x, y: drag.y };
     draggingRef.current = true;
@@ -175,15 +298,20 @@ function SampleCard({
         transform: `translate(${drag.x}px, ${drag.y}px) scale(${
           matched ? 0.3 : shown ? 1 : 0.9
         })`,
-        opacity: matched ? 0 : shown ? 1 : 0,
+        opacity: matched ? 0 : locked ? 0.35 : shown ? 1 : 0,
+        filter: locked ? "grayscale(0.9)" : undefined,
         transition: dragging
           ? "none"
-          : "transform 220ms ease, opacity 220ms ease",
+          : "transform 220ms ease, opacity 220ms ease, filter 220ms ease",
         touchAction: "none",
-        pointerEvents: matched ? "none" : undefined,
+        pointerEvents: matched || locked ? "none" : undefined,
       }}
-      className={`absolute right-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-zinc-200 bg-white text-3xl shadow-lg select-none sm:right-8 sm:h-20 sm:w-20 sm:text-4xl ${
-        dragging ? "z-30 cursor-grabbing shadow-2xl" : "z-20 cursor-grab"
+      className={`absolute right-4 flex h-16 w-16 items-center justify-center rounded-2xl border bg-white text-3xl shadow-lg select-none sm:right-8 sm:h-20 sm:w-20 sm:text-4xl ${
+        locked
+          ? "cursor-not-allowed border-zinc-200"
+          : dragging
+            ? "z-30 cursor-grabbing border-zinc-200 shadow-2xl"
+            : "z-20 cursor-grab border-amber-400 ring-4 ring-amber-200"
       }`}
     >
       <span aria-hidden>{emoji}</span>
@@ -198,6 +326,8 @@ export default function AlphabetLesson() {
   const [speakingIndex, setSpeakingIndex] = useState(-1);
   const [matched, setMatched] = useState<Record<string, boolean>>({});
   const [wrong, setWrong] = useState<string | null>(null); // letter flashing red
+  const [fading, setFading] = useState(false); // a screen is fading out
+  const [entering, setEntering] = useState(false); // start screen fading back in
 
   const runRef = useRef(0); // bumped on every start()/replay to cancel a run in flight
   const finishRef = useRef<(() => void) | null>(null);
@@ -208,6 +338,45 @@ export default function AlphabetLesson() {
     setMatched({});
     setWrong(null);
     setPhase("samples");
+    // Cue the first card once its pop-in has settled.
+    timeoutsRef.current.push(
+      setTimeout(() => playClips([`/audio/drag-${LETTERS[0]}.mp3`]), 500),
+    );
+  }, []);
+
+  const backToStart = useCallback(() => {
+    stopClips();
+    stopTTS();
+    setFading(true); // fade the score board out
+    timeoutsRef.current.push(
+      setTimeout(() => {
+        runRef.current += 1; // cancel any run still in flight
+        finishRef.current?.();
+        finishRef.current = null;
+        setMatched({});
+        setWrong(null);
+        setLeaving(false);
+        setFading(false);
+        setRevealedCount(0);
+        setSpeakingIndex(-1);
+        setEntering(true); // start screen mounts hidden...
+        setPhase("idle");
+        // ...then fades in once that hidden state has painted
+        timeoutsRef.current.push(setTimeout(() => setEntering(false), 60));
+      }, 350),
+    );
+  }, []);
+
+  // Finish: fade the drag screen out, then swap to the score board.
+  const finishToScore = useCallback(() => {
+    stopClips();
+    setFading(true);
+    timeoutsRef.current.push(
+      setTimeout(() => {
+        setFading(false);
+        setPhase("score");
+      }, 350),
+    );
   }, []);
 
   // A picture card was dropped. Over the matching tile -> lock it in + chime.
@@ -229,15 +398,14 @@ export default function AlphabetLesson() {
 
       if (over(tileRefs.current[correctIdx], 28)) {
         setMatched((m) => ({ ...m, [key]: true }));
-        const audio = getAudio();
-        if (audio) {
-          audio.volume = 1;
-          audio.src = "/audio/correct.mp3";
-          try {
-            audio.currentTime = 0;
-          } catch {}
-          audio.play().catch(() => {});
-        }
+        const myIdx = SAMPLES.findIndex((s) => s.letter.toLowerCase() === key);
+        const nextLetter = SAMPLES[myIdx + 1]?.letter.toLowerCase();
+        // "correct" chime, then unlock + cue the next card.
+        playClips(
+          nextLetter
+            ? ["/audio/correct.mp3", `/audio/drag-${nextLetter}.mp3`]
+            : ["/audio/correct.mp3"],
+        );
         return;
       }
 
@@ -266,9 +434,7 @@ export default function AlphabetLesson() {
   const stopAudio = useCallback(() => {
     finishRef.current?.();
     finishRef.current = null;
-    try {
-      sharedAudio?.pause();
-    } catch {}
+    stopClips();
     stopTTS();
   }, []);
 
@@ -380,6 +546,8 @@ export default function AlphabetLesson() {
     setSpeakingIndex(-1);
     setMatched({});
     setWrong(null);
+    setFading(false);
+    setEntering(false);
     setPhase("revealing");
 
     for (let i = 0; i < LETTERS.length; i++) {
@@ -415,9 +583,7 @@ export default function AlphabetLesson() {
     return () => {
       runRef.current += 1;
       timeouts.forEach(clearTimeout);
-      try {
-        sharedAudio?.pause();
-      } catch {}
+      stopClips();
       stopTTS();
     };
   }, []);
@@ -426,30 +592,11 @@ export default function AlphabetLesson() {
     <main className="relative flex flex-1 flex-col items-center justify-center gap-16 overflow-hidden bg-white px-6 py-16 text-center">
       {phase === "idle" ? (
         <div
-          className={`transition-all duration-500 ease-out ${
-            leaving ? "scale-95 opacity-0" : "opacity-100"
+          className={`transition-opacity duration-500 ease-out ${
+            leaving || entering ? "opacity-0" : "opacity-100"
           }`}
         >
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-0 overflow-hidden"
-          >
-            {FLOATING_LETTERS.map((f, i) => (
-              <span
-                key={i}
-                className={`float-letter absolute font-display font-bold select-none ${f.color}`}
-                style={{
-                  top: f.top,
-                  left: f.left,
-                  fontSize: f.size,
-                  animationDuration: f.dur,
-                  animationDelay: f.delay,
-                }}
-              >
-                {f.ch}
-              </span>
-            ))}
-          </div>
+          <FloatingLetters />
 
           <div className="relative z-10 flex flex-col items-center gap-6">
             <h1 className="font-display text-4xl font-bold tracking-tight text-zinc-900 sm:text-5xl">
@@ -467,98 +614,166 @@ export default function AlphabetLesson() {
             </button>
           </div>
         </div>
-      ) : (
-        <>
-          <div
-            role="group"
-            aria-label="Letters A to E"
-            className="flex items-end gap-3 sm:gap-5"
-          >
-            {LETTERS.map((letter, i) => {
-              const revealed = i < revealedCount;
-              const speaking = i === speakingIndex;
-              const translateY = !revealed
-                ? "translate-y-28"
-                : speaking
-                  ? "-translate-y-3"
-                  : "translate-y-0";
-              const color =
-                phase === "samples"
-                  ? matched[letter]
-                    ? "bg-emerald-500 text-white ring-4 ring-emerald-200"
-                    : wrong === letter
-                      ? "bg-red-500 text-white ring-4 ring-red-200"
-                      : "bg-zinc-900 text-white"
-                  : TILE_COLORS[i];
-              return (
-                <span
-                  key={letter}
-                  ref={(el) => {
-                    tileRefs.current[i] = el;
-                  }}
-                  className={[
-                    "font-display flex h-20 w-20 items-center justify-center rounded-3xl text-4xl font-bold",
-                    "transition-all duration-500 ease-out sm:h-32 sm:w-32 sm:text-7xl",
-                    color,
-                    translateY,
-                    revealed ? "opacity-100" : "opacity-0",
-                    speaking
-                      ? "scale-110 shadow-xl ring-4 ring-zinc-900/10"
-                      : "scale-100",
-                  ].join(" ")}
+      ) : phase === "score" ? (
+        (() => {
+          const score = SAMPLES.reduce(
+            (n, s) => n + (matched[s.letter.toLowerCase()] ? 1 : 0),
+            0,
+          );
+          const message =
+            score === SAMPLES.length
+              ? "Perfect! You got them all."
+              : score >= 3
+                ? "Well done!"
+                : "Good try , play again!";
+          return (
+            <div
+              className={`transition-opacity duration-300 ${
+                fading ? "opacity-0" : "opacity-100"
+              }`}
+            >
+              <FloatingLetters />
+
+              <div className="fade-in relative z-10 flex flex-col items-center gap-6">
+                <h1 className="font-display text-4xl font-bold tracking-tight text-zinc-900 sm:text-5xl">
+                  Great job!
+                </h1>
+                <p className="font-display text-6xl font-bold text-emerald-500">
+                  {score} / {SAMPLES.length}
+                </p>
+                <p
+                  className="text-2xl tracking-[0.2em]"
+                  aria-label={`${score} out of ${SAMPLES.length} stars`}
                 >
-                  {letter.toUpperCase()}
-                </span>
-              );
-            })}
+                  {"★".repeat(score)}
+                  <span className="text-zinc-300">
+                    {"★".repeat(SAMPLES.length - score)}
+                  </span>
+                </p>
+
+                <p className="text-lg text-zinc-600">{message}</p>
+                <button
+                  type="button"
+                  onClick={backToStart}
+                  className="font-display cursor-pointer rounded-full bg-zinc-900 px-8 py-3 text-lg font-semibold text-white transition-colors hover:bg-zinc-700"
+                >
+                  Back to start
+                </button>
+              </div>
+            </div>
+          );
+        })()
+      ) : (
+        <div
+          className={`flex flex-col items-center gap-16 transition-opacity duration-300 ${
+            fading ? "opacity-0" : "opacity-100"
+          }`}
+        >
+          <div className="flex flex-col items-center gap-6">
+            {phase === "samples" && (
+              <p className="font-display text-xl font-semibold text-zinc-700 sm:text-2xl">
+                Drag each picture to its letter!
+              </p>
+            )}
+            <div
+              role="group"
+              aria-label="Letters A to E"
+              className="flex items-start gap-3 sm:gap-5"
+            >
+              {LETTERS.map((letter, i) => {
+                const revealed = i < revealedCount;
+                const speaking = i === speakingIndex;
+                const isMatched = phase === "samples" && matched[letter];
+                const translateY = !revealed
+                  ? "translate-y-28"
+                  : speaking
+                    ? "-translate-y-3"
+                    : "translate-y-0";
+                const color =
+                  phase === "samples"
+                    ? matched[letter]
+                      ? "border-4 border-emerald-500 bg-emerald-50 text-emerald-600"
+                      : wrong === letter
+                        ? "border-4 border-red-500 bg-red-50 text-red-600"
+                        : "border-4 border-dashed border-zinc-300 bg-white text-zinc-400"
+                    : TILE_COLORS[i];
+                const emoji = SAMPLES.find(
+                  (s) => s.letter.toLowerCase() === letter,
+                )?.emoji;
+                return (
+                  <div
+                    key={letter}
+                    className="flex flex-col items-center gap-2"
+                  >
+                    <span
+                      ref={(el) => {
+                        tileRefs.current[i] = el;
+                      }}
+                      className={[
+                        "font-display flex h-20 w-20 items-center justify-center rounded-3xl text-4xl font-bold",
+                        "transition-all duration-500 ease-out sm:h-32 sm:w-32 sm:text-7xl",
+                        color,
+                        translateY,
+                        revealed ? "opacity-100" : "opacity-0",
+                        speaking
+                          ? "scale-110 shadow-xl ring-4 ring-zinc-900/10"
+                          : "scale-100",
+                      ].join(" ")}
+                    >
+                      {letter.toUpperCase()}
+                    </span>
+                    {isMatched && emoji && (
+                      <span className="pop-in text-3xl sm:text-4xl" aria-hidden>
+                        {emoji}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
-          <div
-            className={[
-              "relative z-40 flex gap-4 transition-all duration-500 ease-out",
-              phase === "done" || phase === "samples"
-                ? "translate-y-0 scale-100 opacity-100"
-                : "pointer-events-none translate-y-4 scale-90 opacity-0",
-            ].join(" ")}
-          >
-            <button
-              type="button"
-              onClick={start}
-              className="font-display cursor-pointer rounded-full border-2 border-zinc-900 px-7 py-2.5 text-lg font-semibold text-zinc-900 transition-colors hover:bg-zinc-100"
-            >
-              Replay
-            </button>
-            {phase === "samples" ? (
-              <Link
-                href="/lesson"
-                className="font-display cursor-pointer rounded-full bg-zinc-900 px-7 py-2.5 text-lg font-semibold text-white transition-colors hover:bg-zinc-700"
-              >
-                Finish
-              </Link>
-            ) : (
+          {(phase === "done" ||
+            (phase === "samples" &&
+              SAMPLES.every((s) => matched[s.letter.toLowerCase()]))) && (
+            <div className="pop-up relative z-40 flex gap-4">
               <button
                 type="button"
-                onClick={openSamples}
+                onClick={start}
+                className="font-display cursor-pointer rounded-full border-2 border-zinc-900 px-7 py-2.5 text-lg font-semibold text-zinc-900 transition-colors hover:bg-zinc-100"
+              >
+                Replay
+              </button>
+              <button
+                type="button"
+                onClick={phase === "samples" ? finishToScore : openSamples}
                 className="font-display cursor-pointer rounded-full bg-zinc-900 px-7 py-2.5 text-lg font-semibold text-white transition-colors hover:bg-zinc-700"
               >
-                Next
+                {phase === "samples" ? "Finish" : "Next"}
               </button>
-            )}
-          </div>
+            </div>
+          )}
 
           {phase === "samples" &&
-            SAMPLES.map((s, i) => (
-              <SampleCard
-                key={s.letter}
-                index={i}
-                emoji={s.emoji}
-                letter={s.letter}
-                label={`${s.letter} for ${s.word}`}
-                matched={!!matched[s.letter.toLowerCase()]}
-                onDrop={handleSampleDrop}
-              />
-            ))}
-        </>
+            (() => {
+              // First unmatched card is the only draggable one.
+              const activeIndex = SAMPLES.findIndex(
+                (s) => !matched[s.letter.toLowerCase()],
+              );
+              return SAMPLES.map((s, i) => (
+                <SampleCard
+                  key={s.letter}
+                  index={i}
+                  emoji={s.emoji}
+                  letter={s.letter}
+                  label={`${s.letter} for ${s.word}`}
+                  matched={!!matched[s.letter.toLowerCase()]}
+                  locked={activeIndex !== -1 && i > activeIndex}
+                  onDrop={handleSampleDrop}
+                />
+              ));
+            })()}
+        </div>
       )}
     </main>
   );
