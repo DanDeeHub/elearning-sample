@@ -294,7 +294,6 @@ function SampleCard({
       onPointerUp={endDrag}
       onPointerCancel={endDrag}
       style={{
-        top: `${64 + index * 88}px`,
         transform: `translate(${drag.x}px, ${drag.y}px) scale(${
           matched ? 0.3 : shown ? 1 : 0.9
         })`,
@@ -304,9 +303,9 @@ function SampleCard({
           ? "none"
           : "transform 220ms ease, opacity 220ms ease, filter 220ms ease",
         touchAction: "none",
-        pointerEvents: matched || locked ? "none" : undefined,
+        pointerEvents: matched || locked ? "none" : "auto",
       }}
-      className={`absolute right-4 flex h-16 w-16 items-center justify-center rounded-2xl border bg-white text-3xl shadow-lg select-none sm:right-8 sm:h-20 sm:w-20 sm:text-4xl ${
+      className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border bg-white text-2xl shadow-lg select-none sm:h-16 sm:w-16 sm:text-3xl lg:h-20 lg:w-20 lg:text-4xl ${
         locked
           ? "cursor-not-allowed border-zinc-200"
           : dragging
@@ -589,7 +588,7 @@ export default function AlphabetLesson() {
   }, []);
 
   return (
-    <main className="relative flex flex-1 flex-col items-center justify-center gap-16 overflow-hidden bg-white px-6 py-16 text-center">
+    <main className="relative flex flex-1 flex-col items-center justify-center gap-8 overflow-hidden bg-white px-4 py-8 text-center sm:gap-16 sm:px-6 sm:py-16">
       {phase === "idle" ? (
         <div
           className={`transition-opacity duration-500 ease-out ${
@@ -671,9 +670,9 @@ export default function AlphabetLesson() {
         >
           <div className="flex flex-col items-center gap-6">
             {/* reserved so the letters don't move when the prompt appears */}
-            <div className="flex min-h-9 items-center">
+            <div className="flex min-h-8 items-center sm:min-h-9">
               {phase === "samples" && (
-                <p className="font-display text-xl font-semibold text-zinc-700 sm:text-2xl">
+                <p className="font-display text-lg font-semibold text-zinc-700 sm:text-2xl">
                   Drag each picture to its letter!
                 </p>
               )}
@@ -681,16 +680,16 @@ export default function AlphabetLesson() {
             <div
               role="group"
               aria-label="Letters A to E"
-              className="flex items-start gap-3 sm:gap-5"
+              className="flex items-start gap-1 sm:gap-3 lg:gap-5"
             >
               {LETTERS.map((letter, i) => {
                 const revealed = i < revealedCount;
                 const speaking = i === speakingIndex;
                 const isMatched = phase === "samples" && matched[letter];
                 const translateY = !revealed
-                  ? "translate-y-28"
+                  ? "translate-y-20 sm:translate-y-28"
                   : speaking
-                    ? "-translate-y-3"
+                    ? "-translate-y-2 sm:-translate-y-3"
                     : "translate-y-0";
                 const color =
                   phase === "samples"
@@ -713,8 +712,8 @@ export default function AlphabetLesson() {
                         tileRefs.current[i] = el;
                       }}
                       className={[
-                        "font-display flex h-20 w-20 items-center justify-center rounded-3xl text-4xl font-bold",
-                        "transition-all duration-500 ease-out sm:h-32 sm:w-32 sm:text-7xl",
+                        "font-display flex h-14 w-14 items-center justify-center rounded-xl text-3xl font-bold",
+                        "transition-all duration-500 ease-out sm:h-20 sm:w-20 sm:rounded-2xl sm:text-4xl lg:h-28 lg:w-28 lg:rounded-3xl lg:text-6xl",
                         color,
                         translateY,
                         revealed ? "opacity-100" : "opacity-0",
@@ -727,7 +726,7 @@ export default function AlphabetLesson() {
                     </span>
                     {/* reserved so the row height never changes as icons appear */}
                     <span
-                      className="flex min-h-10 items-center text-3xl sm:text-4xl"
+                      className="flex min-h-8 items-center text-2xl sm:min-h-10 sm:text-4xl"
                       aria-hidden
                     >
                       {isMatched && emoji ? (
@@ -741,22 +740,22 @@ export default function AlphabetLesson() {
           </div>
 
           {/* reserved so the letters don't move when the buttons appear */}
-          <div className="flex min-h-14 items-center">
+          <div className="flex min-h-12 items-center sm:min-h-14">
             {(phase === "done" ||
               (phase === "samples" &&
                 SAMPLES.every((s) => matched[s.letter.toLowerCase()]))) && (
-              <div className="pop-up relative z-40 flex gap-4">
+              <div className="pop-up relative z-40 flex gap-3 sm:gap-4">
                 <button
                   type="button"
                   onClick={start}
-                  className="font-display cursor-pointer rounded-full border-2 border-zinc-900 px-7 py-2.5 text-lg font-semibold text-zinc-900 transition-colors hover:bg-zinc-100"
+                  className="font-display cursor-pointer rounded-full border-2 border-zinc-900 px-5 py-2 text-base font-semibold text-zinc-900 transition-colors hover:bg-zinc-100 sm:px-7 sm:py-2.5 sm:text-lg"
                 >
                   Replay
                 </button>
                 <button
                   type="button"
                   onClick={phase === "samples" ? finishToScore : openSamples}
-                  className="font-display cursor-pointer rounded-full bg-zinc-900 px-7 py-2.5 text-lg font-semibold text-white transition-colors hover:bg-zinc-700"
+                  className="font-display cursor-pointer rounded-full bg-zinc-900 px-5 py-2 text-base font-semibold text-white transition-colors hover:bg-zinc-700 sm:px-7 sm:py-2.5 sm:text-lg"
                 >
                   {phase === "samples" ? "Finish" : "Next"}
                 </button>
@@ -770,18 +769,22 @@ export default function AlphabetLesson() {
               const activeIndex = SAMPLES.findIndex(
                 (s) => !matched[s.letter.toLowerCase()],
               );
-              return SAMPLES.map((s, i) => (
-                <SampleCard
-                  key={s.letter}
-                  index={i}
-                  emoji={s.emoji}
-                  letter={s.letter}
-                  label={`${s.letter} for ${s.word}`}
-                  matched={!!matched[s.letter.toLowerCase()]}
-                  locked={activeIndex !== -1 && i > activeIndex}
-                  onDrop={handleSampleDrop}
-                />
-              ));
+              return (
+                <div className="pointer-events-none absolute inset-x-0 bottom-3 z-20 flex flex-wrap items-center justify-center gap-2 px-4 sm:bottom-6 lg:inset-x-auto lg:right-8 lg:bottom-auto lg:top-24 lg:flex-col lg:flex-nowrap lg:gap-4 lg:px-0">
+                  {SAMPLES.map((s, i) => (
+                    <SampleCard
+                      key={s.letter}
+                      index={i}
+                      emoji={s.emoji}
+                      letter={s.letter}
+                      label={`${s.letter} for ${s.word}`}
+                      matched={!!matched[s.letter.toLowerCase()]}
+                      locked={activeIndex !== -1 && i > activeIndex}
+                      onDrop={handleSampleDrop}
+                    />
+                  ))}
+                </div>
+              );
             })()}
         </div>
       )}
