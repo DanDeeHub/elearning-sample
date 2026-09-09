@@ -7,7 +7,7 @@ export default function Lesson() {
         Lesson 1
       </h1>
       <p className="max-w-md text-lg text-zinc-600">Lesson content goes here.</p>
-      <Link href="/" className="text-sm font-medium text-zinc-500 hover:text-zinc-900">
+      <Link href="/" className="cursor-pointer text-sm font-medium text-zinc-500 hover:text-zinc-900">
         &larr; Back
       </Link>
     </main>
