@@ -1,7 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 
 const LETTERS = ["a", "b", "c", "d", "e"] as const;
 
@@ -11,6 +17,15 @@ const TILE_COLORS = [
   "bg-emerald-200 text-emerald-700",
   "bg-sky-200 text-sky-700",
   "bg-violet-200 text-violet-700",
+];
+
+// Shown after "Next": one draggable card per letter
+const SAMPLES = [
+  { letter: "A", word: "Apple", emoji: "🍎" },
+  { letter: "B", word: "Bike", emoji: "🚲" },
+  { letter: "C", word: "Cat", emoji: "🐱" },
+  { letter: "D", word: "Dog", emoji: "🐶" },
+  { letter: "E", word: "Egg", emoji: "🥚" },
 ];
 
 // Faint letters drifting behind the start screen
@@ -90,17 +105,155 @@ function stopTTS() {
   } catch {}
 }
 
-type Phase = "idle" | "revealing" | "pausing" | "speaking" | "done";
+type Phase =
+  | "idle"
+  | "revealing"
+  | "pausing"
+  | "speaking"
+  | "done"
+  | "samples";
+
+// A picture card that can be dragged with a mouse or a finger onto its letter.
+function SampleCard({
+  index,
+  emoji,
+  label,
+  letter,
+  matched,
+  onDrop,
+}: {
+  index: number;
+  emoji: string;
+  label: string;
+  letter: string;
+  matched: boolean;
+  onDrop: (letter: string, x: number, y: number) => void;
+}) {
+  const [drag, setDrag] = useState({ x: 0, y: 0 });
+  const [dragging, setDragging] = useState(false);
+  const [shown, setShown] = useState(false);
+  const startRef = useRef({ px: 0, py: 0, x: 0, y: 0 });
+  const draggingRef = useRef(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => setShown(true), 80 + index * 90);
+    return () => clearTimeout(t);
+  }, [index]);
+
+  const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (matched) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    startRef.current = { px: e.clientX, py: e.clientY, x: drag.x, y: drag.y };
+    draggingRef.current = true;
+    setDragging(true);
+  };
+  const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!draggingRef.current) return;
+    const s = startRef.current;
+    setDrag({ x: s.x + (e.clientX - s.px), y: s.y + (e.clientY - s.py) });
+  };
+  const endDrag = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!draggingRef.current) return;
+    draggingRef.current = false;
+    setDragging(false);
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {}
+    const r = e.currentTarget.getBoundingClientRect();
+    onDrop(letter, r.left + r.width / 2, r.top + r.height / 2);
+  };
+
+  return (
+    <div
+      aria-label={label}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={endDrag}
+      onPointerCancel={endDrag}
+      style={{
+        top: `${64 + index * 88}px`,
+        transform: `translate(${drag.x}px, ${drag.y}px) scale(${
+          matched ? 0.3 : shown ? 1 : 0.9
+        })`,
+        opacity: matched ? 0 : shown ? 1 : 0,
+        transition: dragging
+          ? "none"
+          : "transform 220ms ease, opacity 220ms ease",
+        touchAction: "none",
+        pointerEvents: matched ? "none" : undefined,
+      }}
+      className={`absolute right-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-zinc-200 bg-white text-3xl shadow-lg select-none sm:right-8 sm:h-20 sm:w-20 sm:text-4xl ${
+        dragging ? "z-30 cursor-grabbing shadow-2xl" : "z-20 cursor-grab"
+      }`}
+    >
+      <span aria-hidden>{emoji}</span>
+    </div>
+  );
+}
 
 export default function AlphabetLesson() {
   const [phase, setPhase] = useState<Phase>("idle");
   const [leaving, setLeaving] = useState(false); // start screen is fading out
   const [revealedCount, setRevealedCount] = useState(0);
   const [speakingIndex, setSpeakingIndex] = useState(-1);
+  const [matched, setMatched] = useState<Record<string, boolean>>({});
+  const [wrong, setWrong] = useState<string | null>(null); // letter flashing red
 
   const runRef = useRef(0); // bumped on every start()/replay to cancel a run in flight
   const finishRef = useRef<(() => void) | null>(null);
   const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const tileRefs = useRef<(HTMLSpanElement | null)[]>([]);
+
+  const openSamples = useCallback(() => {
+    setMatched({});
+    setWrong(null);
+    setPhase("samples");
+  }, []);
+
+  // A picture card was dropped. Over the matching tile -> lock it in + chime.
+  // Over a different tile -> flash that tile red for a moment.
+  const handleSampleDrop = useCallback(
+    (letter: string, x: number, y: number) => {
+      const key = letter.toLowerCase();
+      const correctIdx = LETTERS.indexOf(key as (typeof LETTERS)[number]);
+      const over = (el: HTMLSpanElement | null, pad: number) => {
+        if (!el) return false;
+        const r = el.getBoundingClientRect();
+        return (
+          x >= r.left - pad &&
+          x <= r.right + pad &&
+          y >= r.top - pad &&
+          y <= r.bottom + pad
+        );
+      };
+
+      if (over(tileRefs.current[correctIdx], 28)) {
+        setMatched((m) => ({ ...m, [key]: true }));
+        const audio = getAudio();
+        if (audio) {
+          audio.volume = 1;
+          audio.src = "/audio/correct.mp3";
+          try {
+            audio.currentTime = 0;
+          } catch {}
+          audio.play().catch(() => {});
+        }
+        return;
+      }
+
+      const wrongIdx = tileRefs.current.findIndex(
+        (el, i) => i !== correctIdx && over(el, 0),
+      );
+      if (wrongIdx !== -1) {
+        const wl = LETTERS[wrongIdx];
+        setWrong(wl);
+        timeoutsRef.current.push(
+          setTimeout(() => setWrong((w) => (w === wl ? null : w)), 700),
+        );
+      }
+    },
+    [],
+  );
 
   const wait = useCallback(
     (ms: number) =>
@@ -225,6 +378,8 @@ export default function AlphabetLesson() {
 
     setRevealedCount(0);
     setSpeakingIndex(-1);
+    setMatched({});
+    setWrong(null);
     setPhase("revealing");
 
     for (let i = 0; i < LETTERS.length; i++) {
@@ -327,13 +482,24 @@ export default function AlphabetLesson() {
                 : speaking
                   ? "-translate-y-3"
                   : "translate-y-0";
+              const color =
+                phase === "samples"
+                  ? matched[letter]
+                    ? "bg-emerald-500 text-white ring-4 ring-emerald-200"
+                    : wrong === letter
+                      ? "bg-red-500 text-white ring-4 ring-red-200"
+                      : "bg-zinc-900 text-white"
+                  : TILE_COLORS[i];
               return (
                 <span
                   key={letter}
+                  ref={(el) => {
+                    tileRefs.current[i] = el;
+                  }}
                   className={[
                     "font-display flex h-20 w-20 items-center justify-center rounded-3xl text-4xl font-bold",
                     "transition-all duration-500 ease-out sm:h-32 sm:w-32 sm:text-7xl",
-                    TILE_COLORS[i],
+                    color,
                     translateY,
                     revealed ? "opacity-100" : "opacity-0",
                     speaking
@@ -349,8 +515,8 @@ export default function AlphabetLesson() {
 
           <div
             className={[
-              "flex gap-4 transition-all duration-500 ease-out",
-              phase === "done"
+              "relative z-40 flex gap-4 transition-all duration-500 ease-out",
+              phase === "done" || phase === "samples"
                 ? "translate-y-0 scale-100 opacity-100"
                 : "pointer-events-none translate-y-4 scale-90 opacity-0",
             ].join(" ")}
@@ -362,13 +528,36 @@ export default function AlphabetLesson() {
             >
               Replay
             </button>
-            <Link
-              href="/lesson"
-              className="font-display cursor-pointer rounded-full bg-zinc-900 px-7 py-2.5 text-lg font-semibold text-white transition-colors hover:bg-zinc-700"
-            >
-              Next
-            </Link>
+            {phase === "samples" ? (
+              <Link
+                href="/lesson"
+                className="font-display cursor-pointer rounded-full bg-zinc-900 px-7 py-2.5 text-lg font-semibold text-white transition-colors hover:bg-zinc-700"
+              >
+                Finish
+              </Link>
+            ) : (
+              <button
+                type="button"
+                onClick={openSamples}
+                className="font-display cursor-pointer rounded-full bg-zinc-900 px-7 py-2.5 text-lg font-semibold text-white transition-colors hover:bg-zinc-700"
+              >
+                Next
+              </button>
+            )}
           </div>
+
+          {phase === "samples" &&
+            SAMPLES.map((s, i) => (
+              <SampleCard
+                key={s.letter}
+                index={i}
+                emoji={s.emoji}
+                letter={s.letter}
+                label={`${s.letter} for ${s.word}`}
+                matched={!!matched[s.letter.toLowerCase()]}
+                onDrop={handleSampleDrop}
+              />
+            ))}
         </>
       )}
     </main>
