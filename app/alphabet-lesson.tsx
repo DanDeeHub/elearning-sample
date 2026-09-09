@@ -670,11 +670,14 @@ export default function AlphabetLesson() {
           }`}
         >
           <div className="flex flex-col items-center gap-6">
-            {phase === "samples" && (
-              <p className="font-display text-xl font-semibold text-zinc-700 sm:text-2xl">
-                Drag each picture to its letter!
-              </p>
-            )}
+            {/* reserved so the letters don't move when the prompt appears */}
+            <div className="flex min-h-9 items-center">
+              {phase === "samples" && (
+                <p className="font-display text-xl font-semibold text-zinc-700 sm:text-2xl">
+                  Drag each picture to its letter!
+                </p>
+              )}
+            </div>
             <div
               role="group"
               aria-label="Letters A to E"
@@ -722,37 +725,44 @@ export default function AlphabetLesson() {
                     >
                       {letter.toUpperCase()}
                     </span>
-                    {isMatched && emoji && (
-                      <span className="pop-in text-3xl sm:text-4xl" aria-hidden>
-                        {emoji}
-                      </span>
-                    )}
+                    {/* reserved so the row height never changes as icons appear */}
+                    <span
+                      className="flex min-h-10 items-center text-3xl sm:text-4xl"
+                      aria-hidden
+                    >
+                      {isMatched && emoji ? (
+                        <span className="pop-in">{emoji}</span>
+                      ) : null}
+                    </span>
                   </div>
                 );
               })}
             </div>
           </div>
 
-          {(phase === "done" ||
-            (phase === "samples" &&
-              SAMPLES.every((s) => matched[s.letter.toLowerCase()]))) && (
-            <div className="pop-up relative z-40 flex gap-4">
-              <button
-                type="button"
-                onClick={start}
-                className="font-display cursor-pointer rounded-full border-2 border-zinc-900 px-7 py-2.5 text-lg font-semibold text-zinc-900 transition-colors hover:bg-zinc-100"
-              >
-                Replay
-              </button>
-              <button
-                type="button"
-                onClick={phase === "samples" ? finishToScore : openSamples}
-                className="font-display cursor-pointer rounded-full bg-zinc-900 px-7 py-2.5 text-lg font-semibold text-white transition-colors hover:bg-zinc-700"
-              >
-                {phase === "samples" ? "Finish" : "Next"}
-              </button>
-            </div>
-          )}
+          {/* reserved so the letters don't move when the buttons appear */}
+          <div className="flex min-h-14 items-center">
+            {(phase === "done" ||
+              (phase === "samples" &&
+                SAMPLES.every((s) => matched[s.letter.toLowerCase()]))) && (
+              <div className="pop-up relative z-40 flex gap-4">
+                <button
+                  type="button"
+                  onClick={start}
+                  className="font-display cursor-pointer rounded-full border-2 border-zinc-900 px-7 py-2.5 text-lg font-semibold text-zinc-900 transition-colors hover:bg-zinc-100"
+                >
+                  Replay
+                </button>
+                <button
+                  type="button"
+                  onClick={phase === "samples" ? finishToScore : openSamples}
+                  className="font-display cursor-pointer rounded-full bg-zinc-900 px-7 py-2.5 text-lg font-semibold text-white transition-colors hover:bg-zinc-700"
+                >
+                  {phase === "samples" ? "Finish" : "Next"}
+                </button>
+              </div>
+            )}
+          </div>
 
           {phase === "samples" &&
             (() => {
