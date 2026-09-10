@@ -15,8 +15,9 @@ const lexend = Lexend({
 });
 
 export const metadata: Metadata = {
-  title: "elearning-sample",
-  description: "",
+  title: "Elearning Sample",
+  description:
+    "An interactive elearning sample built with Next.js using an AI assisted workflow. It teaches the alphabet from A to E with an animated lesson, spoken letters, drag and drop matching, and a score screen.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

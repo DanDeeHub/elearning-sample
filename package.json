@@ -2,6 +2,7 @@
   "name": "elearning-sample",
   "version": "0.1.0",
   "private": true,
+  "description": "An interactive elearning sample built with Next.js using an AI assisted workflow. It teaches the alphabet from A to E with an animated lesson, spoken letters, drag and drop matching, and a score screen.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
